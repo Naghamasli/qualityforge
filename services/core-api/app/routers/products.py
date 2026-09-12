@@ -1,4 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models.product import ProductModel
 from app.schemas.product import Product
 
 
@@ -8,40 +13,25 @@ router = APIRouter(
 )
 
 
-products = [
-    {
-        "id": 1,
-        "name": "Laptop",
-        "price": 1200.0,
-        "stock": 5
-    },
-    {
-        "id": 2,
-        "name": "Keyboard",
-        "price": 80.0,
-        "stock": 12
-    },
-    {
-        "id": 3,
-        "name": "Mouse",
-        "price": 40.0,
-        "stock": 20
-    }
-]
-
-
 @router.get("", response_model=list[Product])
-def get_products():
+def get_products(db: Session = Depends(get_db)):
+    statement = select(ProductModel)
+    products = db.scalars(statement).all()
+
     return products
 
 
 @router.get("/{product_id}", response_model=Product)
-def get_product(product_id: int):
-    for product in products:
-        if product["id"] == product_id:
-            return product
+def get_product(
+    product_id: int,
+    db: Session = Depends(get_db)
+):
+    product = db.get(ProductModel, product_id)
 
-    raise HTTPException(
-        status_code=404,
-        detail="Product not found"
-    )
+    if product is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Product not found"
+        )
+
+    return product
